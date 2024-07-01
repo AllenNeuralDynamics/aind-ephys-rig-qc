@@ -137,3 +137,14 @@ dmypy.json
 
 # MacOs
 **/.DS_Store
+
+# Vscode
+./vscode
+
+# generated files
+**/*localsync_timestamps.npy
+**/*original_timestamps.npy
+**/*qc.pdf
+**/*temporal_alignment.png
+**/*harp_line_search.png
+**/*ephys-rig-QC_output.txt

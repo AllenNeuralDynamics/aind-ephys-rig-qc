@@ -56,7 +56,7 @@ class PdfReport(FPDF):
         if platform.system() == "Linux":
             plt.rcParams["font.sans-serif"] = ["Nimbus Sans"]
         else:
-            plt.rcParams["font.sans-serif"] = ["Arial"]
+            plt.rcParams["font.sans-serif"] = ["Arial"]  # pragma: no cover
 
     def embed_figure(self, fig, width=190):
         """
@@ -87,7 +87,7 @@ class PdfReport(FPDF):
             The width of the image in the PDF
         """
 
-        DF = df.map(str)  # convert all elements to string
+        DF = df.astype(str)  # convert all elements to string
         DATA = [
             list(DF)
         ] + DF.values.tolist()  # Combine columns and rows in one list
