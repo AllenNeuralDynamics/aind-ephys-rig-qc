@@ -132,28 +132,31 @@ def search_harp_line(recording, directory, pdf=None):
 
     events = recording.events
     # find the NIDAQ stream
-    for stream_ind, stream in enumerate(recording.continuous):
-        if "PXIe" in stream.metadata["stream_name"]:
-            nidaq_stream_ind = stream_ind
-            break
-    nidaq_stream_name = recording.continuous[nidaq_stream_ind].metadata[
-        "stream_name"
-    ]
-    nidaq_stream_source_node_id = recording.continuous[
-        nidaq_stream_ind
-    ].metadata["source_node_id"]
-    # list potential lines to scan on NIDAQ stream
+    # for stream_ind, stream in enumerate(recording.continuous):
+    #     if "PXIe" in stream.metadata["stream_name"]:
+    #         nidaq_stream_ind = stream_ind
+    #         break
+    # nidaq_stream_name = recording.continuous[nidaq_stream_ind].metadata[
+    #     "stream_name"
+    # ]
+    # nidaq_stream_source_node_id = recording.continuous[
+    #     nidaq_stream_ind
+    # ].metadata["source_node_id"]
+    # # list potential lines to scan on NIDAQ stream
+    nidaq_stream_name = [stream_name for stream_name in events['stream_name'].unique().tolist() if 'PXIe' in stream_name][0]
+    nidaq_stream_source_node_id = events[events['stream_name']==nidaq_stream_name].processor_id.unique()[0]
+
     lines_to_scan = events[
         (events.stream_name == nidaq_stream_name)
         & (events.processor_id == nidaq_stream_source_node_id)
         & (events.state == 1)
     ].line.unique()
 
-    stream_folder_names, _ = se.get_neo_streams("openephys", directory)
-    stream_folder_names = [
-        stream_folder_name.split("#")[-1]
-        for stream_folder_name in stream_folder_names
-    ]
+    # stream_folder_names, _ = se.get_neo_streams("openephys", directory)
+    # stream_folder_names = [
+    #     stream_folder_name.split("#")[-1]
+    #     for stream_folder_name in stream_folder_names
+    # ]
 
     ncols = len(lines_to_scan)
     figure, axs = plt.subplots(
