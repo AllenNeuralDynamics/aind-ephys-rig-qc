@@ -1,7 +1,8 @@
 {
     "report_name" : "QC.pdf",
-    "timestamp_alignment_method" : "harp",
+    "timestamp_alignment_method" : "local",
     "original_timestamp_filename" : "original_timestamps.npy",
-    "plot_drift_map" : false,
-    "flip_NIDAQ" : false
+    "plot_drift_map" : true,
+    "flip_NIDAQ" : false,
+    "psd_chunk_size" : 150000
 }

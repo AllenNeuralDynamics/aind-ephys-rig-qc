@@ -22,8 +22,9 @@ dependencies = [
     'fpdf2',
     'scipy',
     'rich',
-    'spikeinterface>=0.101.0',
-    'harp-python @ git+https://github.com/jsiegle/harp-python@decode-clock'
+    'spikeinterface>=0.101.2',
+    'harp-python @ git+https://github.com/jsiegle/harp-python@decode-clock',
+    'numpy==1.26.4'
 ]
 
 [project.optional-dependencies]
