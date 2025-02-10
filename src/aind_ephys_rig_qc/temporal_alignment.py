@@ -865,17 +865,17 @@ def align_timestamps_harp(
                     archive_filename="local_timestamps.npy",
                 )
 
-            axes[0, 0].set_title("Harp time vs local time")
-            axes[0, 0].set_xlabel("Local time (s)")
-            axes[0, 0].set_ylabel("Harp time (s)")
-            axes[0, 1].set_title("Time intervals")
-            axes[0, 1].legend(loc="upper left")
-            axes[1, 0].set_title("Local timestamps (s)")
-            axes[1, 0].set_xlabel("Samples")
-            axes[1, 1].set_title("Harp timestamps (s)")
-            axes[1, 1].set_xlabel("Samples")
-
             if pdf is not None:
+                axes[0, 0].set_title("Harp time vs local time")
+                axes[0, 0].set_xlabel("Local time (s)")
+                axes[0, 0].set_ylabel("Harp time (s)")
+                axes[0, 1].set_title("Time intervals")
+                axes[0, 1].legend(loc="upper left")
+                axes[1, 0].set_title("Local timestamps (s)")
+                axes[1, 0].set_xlabel("Samples")
+                axes[1, 1].set_title("Harp timestamps (s)")
+                axes[1, 1].set_xlabel("Samples")
+
                 pdf.set_y(40)
                 pdf.embed_figure(fig)
                 fig.savefig(os.path.join(directory, "harp_temporal_alignment.png"))
