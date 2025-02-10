@@ -725,9 +725,8 @@ def align_timestamps(  # noqa
                             archive_filename=original_timestamp_filename,
                         )
 
-    fig.savefig(os.path.join(directory, "temporal_alignment.png"))
-
-    return fig
+    if pdf is not None:
+        fig.savefig(os.path.join(directory, "temporal_alignment.png"))
 
 
 def align_timestamps_harp(
@@ -806,15 +805,14 @@ def align_timestamps_harp(
                         f"Recording {current_recording_index}"
                     ),
                 )
-            fig = Figure(figsize=(10, 10))
-            axes = fig.subplots(nrows=2, ncols=2)
+                fig = Figure(figsize=(10, 10))
+                axes = fig.subplots(nrows=2, ncols=2)
 
-            axes[0, 0].plot(start_times, harp_times)
-            axes[0, 1].plot(np.diff(start_times), label="start times")
-            axes[0, 1].plot(np.diff(harp_times), label="harp times")
-            axes[0, 1].legend(loc="upper left")
-            axes[0, 1].set_ylabel("Intervals - 1s (ms)")
-            # axes[2,0].bar(sample_intervals_cat, sample_intervals_counts)
+                axes[0, 0].plot(start_times, harp_times)
+                axes[0, 1].plot(np.diff(start_times), label="start times")
+                axes[0, 1].plot(np.diff(harp_times), label="harp times")
+                axes[0, 1].legend(loc="upper left")
+                axes[0, 1].set_ylabel("Intervals - 1s (ms)")
 
             for stream_ind in range(len(recording.continuous)):
 
@@ -834,9 +832,9 @@ def align_timestamps_harp(
                     local_stream_times, start_times, harp_times
                 )
                 # plot harp timestamps vs local timestamps
-
-                axes[1, 0].plot(local_stream_times, label=stream_name)
-                axes[1, 1].plot(harp_aligned_ts, label=stream_name)
+                if pdf is not None:
+                    axes[1, 0].plot(local_stream_times, label=stream_name)
+                    axes[1, 1].plot(harp_aligned_ts, label=stream_name)
 
                 archive_and_replace_original_timestamps(
                     os.path.join(
@@ -880,8 +878,7 @@ def align_timestamps_harp(
             if pdf is not None:
                 pdf.set_y(40)
                 pdf.embed_figure(fig)
-
-            fig.savefig(os.path.join(directory, "harp_temporal_alignment.png"))
+                fig.savefig(os.path.join(directory, "harp_temporal_alignment.png"))
 
 
 if __name__ == "__main__":
