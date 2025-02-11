@@ -273,6 +273,7 @@ def align_timestamps(  # noqa
     local_sync_line=1,
     main_stream_index=0,
     pdf=None,
+    do_plots=True
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -289,7 +290,11 @@ def align_timestamps(  # noqa
         The index of the main stream to align to
     pdf : PdfReport
         Report for adding QC figures (optional)
+    do_plots : bool
+        Whether to plot the alignment figures.
     """
+    if pdf is not None:
+        assert do_plots, "Cannot save figures without plotting"
 
     session = Session(directory, mmap_timestamps=False)
     stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
@@ -407,6 +412,7 @@ def align_timestamps(  # noqa
                             f"Recording {current_recording_index}"
                         ),
                     )
+                if do_plots:
                     fig = Figure(figsize=(10, 10))
                     axes = fig.subplots(nrows=3, ncols=2)
 
@@ -609,7 +615,7 @@ def align_timestamps(  # noqa
                             + "main times"
                         )
 
-                        if pdf is not None:
+                        if do_plots:
                             """Plot original timestamps"""
                             axes[0, 0].plot(
                                 stream.timestamps, label=stream_name
@@ -649,8 +655,8 @@ def align_timestamps(  # noqa
                             main_stream_times,
                         )
 
-                        if pdf is not None:
-                            """Plot aligned timestamps"""
+                        if do_plots:
+                            # Plot aligned timestamps
                             axes[0, 1].plot(ts_stream, label=stream_name)
                             axes[1, 1].plot(
                                 (np.diff(ts) - np.diff(main_stream_times))
@@ -678,7 +684,7 @@ def align_timestamps(  # noqa
                             archive_filename=original_timestamp_filename,
                         )
 
-                        if pdf is not None:
+                        if do_plots:
                             axes[0, 0].set_title("Original alignment")
                             axes[0, 0].set_xlabel("Sample number")
                             axes[0, 0].set_ylabel("Time (ms)")
@@ -695,6 +701,7 @@ def align_timestamps(  # noqa
                             axes[1, 1].set_xlabel("Sync event number")
                             axes[1, 1].set_ylabel("Time diff (ms)")
 
+                        if pdf is not None:
                             pdf.set_y(40)
                             pdf.embed_figure(fig)
 
@@ -725,13 +732,14 @@ def align_timestamps(  # noqa
                             archive_filename=original_timestamp_filename,
                         )
 
-    if pdf is not None:
+    if do_plots:
         fig.savefig(os.path.join(directory, "temporal_alignment.png"))
 
 
 def align_timestamps_harp(
     directory,
     pdf=None,
+    do_plots=True
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -740,10 +748,13 @@ def align_timestamps_harp(
     ----------
     directory : str
         The path to the Open Ephys data directory
-    qc_report : PdfReport
+    pdf : PdfReport
         Report for adding QC figures (optional)
+    do_plots : bool
+        Whether to plot the alignment figures.
     """
-
+    if pdf is not None:
+        assert do_plots, "Cannot save figures without plotting"
     session = Session(directory, mmap_timestamps=False)
     stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
     stream_folder_names = [
@@ -805,6 +816,7 @@ def align_timestamps_harp(
                         f"Recording {current_recording_index}"
                     ),
                 )
+            if do_plots:
                 fig = Figure(figsize=(10, 10))
                 axes = fig.subplots(nrows=2, ncols=2)
 
@@ -865,7 +877,7 @@ def align_timestamps_harp(
                     archive_filename="local_timestamps.npy",
                 )
 
-            if pdf is not None:
+            if do_plots:
                 axes[0, 0].set_title("Harp time vs local time")
                 axes[0, 0].set_xlabel("Local time (s)")
                 axes[0, 0].set_ylabel("Harp time (s)")
@@ -875,10 +887,11 @@ def align_timestamps_harp(
                 axes[1, 0].set_xlabel("Samples")
                 axes[1, 1].set_title("Harp timestamps (s)")
                 axes[1, 1].set_xlabel("Samples")
+                fig.savefig(os.path.join(directory, "harp_temporal_alignment.png"))
 
+            if pdf is not None:
                 pdf.set_y(40)
                 pdf.embed_figure(fig)
-                fig.savefig(os.path.join(directory, "harp_temporal_alignment.png"))
 
 
 if __name__ == "__main__":
