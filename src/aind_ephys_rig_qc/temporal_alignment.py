@@ -3,8 +3,8 @@ Aligns timestamps across multiple data streams
 """
 
 import json
-import os
 import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +13,8 @@ from harp.clock import align_timestamps_to_anchor_points, decode_harp_clock
 from matplotlib.figure import Figure
 from open_ephys.analysis import Session
 from scipy.stats import chisquare
+
+from aind_ephys_rig_qc.pdf_utils import PdfReport
 
 
 def clean_up_sample_chunks(sample_number):
@@ -45,8 +47,8 @@ def clean_up_sample_chunks(sample_number):
         print(f"Found {len(discontinuities)} discontinuit(ies)")
         if len(discontinuities) >= 3:
             print(
-                "Found more than 3 discontinuities."
-                + "Please check quality of recording."
+                "Found more than 3 discontinuities. "
+                "Please check quality of recording."
             )
             realign = False
         else:
@@ -86,8 +88,8 @@ def clean_up_sample_chunks(sample_number):
             )
             if np.all(no_overlaps):
                 print(
-                    "Residual chunks can be removed"
-                    + " without affecting major chunk"
+                    "Residual chunks can be removed "
+                    " without affecting major chunk"
                 )
             else:
                 main_range = np.arange(major_min, major_max)
@@ -104,8 +106,8 @@ def clean_up_sample_chunks(sample_number):
                     1 - (len(main_range) / (major_max - major_min))
                 ) * 100
                 print(
-                    "Residual chunks cannot be removed without"
-                    + f" affecting major chunk, overlap {overlap_perc}%"
+                    "Residual chunks cannot be removed without "
+                    f" affecting major chunk, overlap {overlap_perc}%"
                 )
 
         return realign, residual_ranges
@@ -117,11 +119,11 @@ def search_harp_line(recording, directory, pdf=None):
 
     Parameters
     ----------
-    recording : SpikeInterface recording object
+    recording : SpikeInterface.BaseRecording
         The recording object to search for the Harp clock line
-    directory : str
+    directory : Path
         The path to the Open Ephys data directory
-    pdf : PdfReport
+    pdf : PdfReport | None
         Report for adding QC figures (optional)
 
     Returns
@@ -129,7 +131,7 @@ def search_harp_line(recording, directory, pdf=None):
     harp_line : int
         The line number of the Harp clock in the NIDAQ stream
     """
-
+    directory = Path(directory)
     events = recording.events
     # find the NIDAQ stream
     for stream_ind, stream in enumerate(recording.continuous):
@@ -225,7 +227,8 @@ def search_harp_line(recording, directory, pdf=None):
         pdf.embed_figure(figure)
     harp_line = candidate_lines
 
-    figure.savefig(os.path.join(directory, "harp_line_search.png"))
+    figure.savefig(directory / "harp_line_search.png")
+
     return harp_line, nidaq_stream_name, nidaq_stream_source_node_id
 
 
@@ -249,31 +252,30 @@ def archive_and_replace_original_timestamps(
     archive_filename : str
         The name of the file for archiving the original timestamps
     """
+    directory = Path(directory)
 
-    if not os.path.exists(os.path.join(directory, archive_filename)):
+    if not (directory / archive_filename).exists():
         # rename the original timestamps file
-        os.rename(
-            os.path.join(directory, timestamp_filename),
-            os.path.join(directory, archive_filename),
-        )
+        (directory / timestamp_filename).rename(directory / archive_filename)
     else:
         print(
             "Original timestamps already archived. Removed current timestamps."
         )
-        os.remove(os.path.join(directory, timestamp_filename))
+        (directory / timestamp_filename).unlink()
 
     # save the new timestamps
-    np.save(os.path.join(directory, timestamp_filename), new_timestamps)
+    np.save(directory / timestamp_filename, new_timestamps)
 
 
-def align_timestamps(  # noqa
+def align_timestamps(  # nqa
     directory,
-    original_timestamp_filename="original_timestamps.npy",
-    flip_NIDAQ=False,
-    local_sync_line=1,
-    main_stream_index=0,
-    pdf=None,
-    do_plots=True
+    original_timestamp_filename: str = "original_timestamps.npy",
+    flip_NIDAQ: bool = False,
+    local_sync_line: int = 1,
+    main_stream_index: int = 0,
+    pdf: PdfReport | None = None,
+    do_plots: bool = True,
+    subsample_plots: int | None = None,
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -282,19 +284,27 @@ def align_timestamps(  # noqa
     ----------
     directory : str
         The path to the Open Ephys data directory
-    original_timestamp_filename : str
+    original_timestamp_filename : str, default: "original_timestamps.npy"
         The name of the file for archiving the original timestamps
-    local_sync_line : int
+    local_sync_line : int, default: 1
         The line number for the local sync signal on each stream
-    main_stream_index : int
+    main_stream_index : int, default: 0
         The index of the main stream to align to
-    pdf : PdfReport
-        Report for adding QC figures (optional)
-    do_plots : bool
+    pdf : PdfReport | None, default: None
+        Report for adding QC figures. If None, no report is generated.
+        The `do_plots` parameter must be set to True to save figures in case
+        a report is generated.
+    do_plots : bool, default: True
         Whether to plot the alignment figures.
+    subsample_plots : int | None, default: None
+        If given, the plot timestamps functions will skip every
+        `subsample_plots` continuous timestamps.
     """
     if pdf is not None:
         assert do_plots, "Cannot save figures without plotting"
+
+    if subsample_plots is None:
+        subsample_plots = 1
 
     session = Session(directory, mmap_timestamps=False)
     stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
@@ -304,9 +314,8 @@ def align_timestamps(  # noqa
     ]
 
     for recordnode in session.recordnodes:
-        curr_record_node = os.path.basename(recordnode.directory).split(
-            "Record Node "
-        )[1]
+        record_node_dir = Path(recordnode.directory)
+        curr_record_node = record_node_dir.name.split("Record Node ")[1]
 
         for recording in recordnode.recordings:
             current_experiment_index = recording.experiment_index
@@ -356,8 +365,8 @@ def align_timestamps(  # noqa
             realign, residual_ranges = clean_up_sample_chunks(sample_numbers)
             if not realign:
                 print(
-                    "Recording cannot be realigned."
-                    + "Please check quality of recording."
+                    "Recording cannot be realigned. "
+                    "Please check quality of recording."
                 )
                 continue
             else:
@@ -397,7 +406,7 @@ def align_timestamps(  # noqa
 
                 print(
                     f"Total events for {main_stream_name}: "
-                    + f"{len(main_stream_events)}"
+                    f"{len(main_stream_events)}"
                 )
                 if pdf is not None:
                     pdf.add_page()
@@ -417,9 +426,12 @@ def align_timestamps(  # noqa
                     axes = fig.subplots(nrows=3, ncols=2)
 
                     axes[0, 0].plot(
-                        main_stream.timestamps, label=main_stream_name
+                        main_stream.timestamps[::subsample_plots],
+                        label=main_stream_name,
                     )
-                    axes[0, 1].plot(ts_main, label=main_stream_name)
+                    axes[0, 1].plot(
+                        ts_main[::subsample_plots], label=main_stream_name
+                    )
                     axes[2, 0].bar(
                         sample_intervals_cat, sample_intervals_counts
                     )
@@ -433,9 +445,7 @@ def align_timestamps(  # noqa
                 ][0]
                 print("Updating stream continuous timestamps...")
                 archive_and_replace_original_timestamps(
-                    os.path.join(
-                        recording.directory, "continuous", stream_folder_name
-                    ),
+                    record_node_dir / "continuous" / stream_folder_name,
                     new_timestamps=ts_main,
                     timestamp_filename="timestamps.npy",
                     archive_filename=original_timestamp_filename,
@@ -446,11 +456,11 @@ def align_timestamps(  # noqa
                 # save timestamps for the events in the main stream
                 # mapping to original events sample number
                 # in case timestamps are not in order
-                main_stream_events_folder = os.path.join(
-                    recording.directory, "events", stream_folder_name, "TTL"
+                main_stream_events_folder = (
+                    record_node_dir / "events" / stream_folder_name / "TTL"
                 )
-                sample_filename_events = os.path.join(
-                    main_stream_events_folder, "sample_numbers.npy"
+                sample_filename_events = (
+                    main_stream_events_folder / "sample_numbers.npy"
                 )
                 sample_number_raw = np.load(sample_filename_events)
                 ts_main_events = align_timestamps_to_anchor_points(
@@ -519,8 +529,8 @@ def align_timestamps(  # noqa
 
                     if not realign:
                         print(
-                            "Recording cannot be realigned."
-                            + " Please check quality of recording."
+                            "Recording cannot be realigned. "
+                            "Please check quality of recording."
                         )
                         continue
                     else:
@@ -544,31 +554,27 @@ def align_timestamps(  # noqa
 
                         print(
                             f"Before removal: {len(events_for_stream)} "
-                            + f"local times, {len(main_stream_times)} "
-                            + "main times"
+                            f"local times, {len(main_stream_times)} "
+                            "main times"
                         )
 
                         if len(main_stream_events) != len(events_for_stream):
                             print(
                                 "Number of events in main and current stream"
-                                + " are not equal"
+                                " are not equal"
                             )
                             first_main_event_ts = (
                                 main_stream_events.sample_number.values[0]
                             ) / main_stream_sample_rate
-                            print(first_main_event_ts)
                             first_curr_event_ts = (
                                 events_for_stream.sample_number.values[0]
                             ) / sample_rate
-                            print(first_curr_event_ts)
                             offset = np.abs(
                                 first_main_event_ts - first_curr_event_ts
                             )
-                            print(offset)
                             print(
                                 "First event in main and current stream"
-                                + " are not aligned. Off by "
-                                + f"{offset:.2f} s"
+                                " are not aligned. Off by {offset:.2f} s"
                             )
 
                             if offset > 0.1:
@@ -587,12 +593,11 @@ def align_timestamps(  # noqa
                                     main_stream_times = main_stream_times[1:]
                                 else:
                                     print(
-                                        "Removing first event in"
-                                        + " current stream"
+                                        "Removing first event in "
+                                        "current stream"
                                     )
                                     events_for_stream = events_for_stream[1:]
                             else:
-
                                 # remove last event from the stream
                                 # with the most events
                                 if len(main_stream_events) > len(
@@ -611,17 +616,17 @@ def align_timestamps(  # noqa
                         else:
                             print(
                                 "Number of events in main and current stream"
-                                + " are equal"
+                                " are equal"
                             )
 
                         print(
                             f"After removal: {len(events_for_stream)} "
-                            + f"local times, {len(main_stream_times)} "
-                            + "main times"
+                            f"local times, {len(main_stream_times)} "
+                            "main times"
                         )
 
                         if do_plots:
-                            """Plot original timestamps"""
+                            # Plot original timestamps
                             axes[0, 0].plot(
                                 stream.timestamps, label=stream_name
                             )
@@ -673,17 +678,15 @@ def align_timestamps(  # noqa
 
                         # write the new timestamps .npy files
                         stream_folder_name = [
-                            stream_folder_name
-                            for stream_folder_name in stream_folder_names
-                            if stream_name in stream_folder_name
+                            name
+                            for name in stream_folder_names
+                            if stream_name in name
                         ][0]
                         print("Updating stream continuous timestamps...")
                         archive_and_replace_original_timestamps(
-                            os.path.join(
-                                recording.directory,
-                                "continuous",
-                                stream_folder_name,
-                            ),
+                            record_node_dir
+                            / "continuous"
+                            / stream_folder_name,
                             new_timestamps=ts_stream,
                             timestamp_filename="timestamps.npy",
                             archive_filename=original_timestamp_filename,
@@ -713,14 +716,14 @@ def align_timestamps(  # noqa
                         # save timestamps for the events in the stream
                         # mapping original events sample number
                         # in case timestamps are not in order
-                        stream_events_folder = os.path.join(
-                            recording.directory,
-                            "events",
-                            stream_folder_name,
-                            "TTL",
+                        stream_events_folder = (
+                            record_node_dir
+                            / "events"
+                            / stream_folder_name
+                            / "TTL"
                         )
-                        sample_filename_events = os.path.join(
-                            stream_events_folder, "sample_numbers.npy"
+                        sample_filename_events = (
+                            stream_events_folder / "sample_numbers.npy"
                         )
                         sample_number_raw = np.load(sample_filename_events)
 
@@ -738,13 +741,14 @@ def align_timestamps(  # noqa
                         )
 
     if do_plots:
-        fig.savefig(os.path.join(directory, "temporal_alignment.png"))
+        fig.savefig(directory / "temporal_alignment.png")
 
 
 def align_timestamps_harp(
-    directory,
-    pdf=None,
-    do_plots=True
+    directory: str,
+    pdf: PdfReport | None = None,
+    do_plots: bool = True,
+    subsample_plots: int | None = None,
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -753,13 +757,19 @@ def align_timestamps_harp(
     ----------
     directory : str
         The path to the Open Ephys data directory
-    pdf : PdfReport
+    pdf : PdfReport | None
         Report for adding QC figures (optional)
     do_plots : bool
         Whether to plot the alignment figures.
+    subsample_plots : int | None
+        If given, the plot timestamps functions will skip every
+        `subsample_plots` continuous timestamps.
     """
+    directory = Path(directory)
     if pdf is not None:
         assert do_plots, "Cannot save figures without plotting"
+    if subsample_plots is None:
+        subsample_plots = 1
     session = Session(directory, mmap_timestamps=False)
     stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
     stream_folder_names = [
@@ -768,12 +778,10 @@ def align_timestamps_harp(
     ]
 
     for recordnode in session.recordnodes:
-        curr_record_node = os.path.basename(recordnode.directory).split(
-            "Record Node "
-        )[1]
+        record_node_dir = Path(recordnode.directory)
+        curr_record_node = record_node_dir.name.split("Record Node ")[1]
 
         for recording in recordnode.recordings:
-
             current_experiment_index = recording.experiment_index
             current_recording_index = recording.recording_index
 
@@ -795,7 +803,6 @@ def align_timestamps_harp(
                 print("Harp line detected: ", harp_line)
 
             # align time to harp clock
-            events = recording.events
             harp_events = events[
                 (events.stream_name == nidaq_stream_name)
                 & (events.processor_id == source_node_id)
@@ -813,14 +820,13 @@ def align_timestamps_harp(
                 pdf.add_page()
                 pdf.set_font("Helvetica", "B", size=12)
                 pdf.set_y(30)
-                pdf.write(
-                    h=12,
-                    text=(
-                        f"Harp alignment of Record Node {curr_record_node},"
-                        f"Experiment {current_experiment_index},"
-                        f"Recording {current_recording_index}"
-                    ),
+                text = (
+                    f"Harp alignment of Record Node {curr_record_node}, "
+                    f"Experiment {current_experiment_index}, "
+                    f"Recording {current_recording_index}"
                 )
+                pdf.write(h=12, text=text)
+
             if do_plots:
                 fig = Figure(figsize=(10, 10))
                 axes = fig.subplots(nrows=2, ncols=2)
@@ -832,14 +838,11 @@ def align_timestamps_harp(
                 axes[0, 1].set_ylabel("Intervals - 1s (ms)")
 
             for stream_ind in range(len(recording.continuous)):
-
                 stream_name = recording.continuous[stream_ind].metadata[
                     "stream_name"
                 ]
                 stream_folder_name = [
-                    stream_folder_name
-                    for stream_folder_name in stream_folder_names
-                    if stream_name in stream_folder_name
+                    name for name in stream_folder_names if stream_name in name
                 ][0]
                 # continuous streams timestamps
                 local_stream_times = recording.continuous[
@@ -850,24 +853,27 @@ def align_timestamps_harp(
                 )
                 # plot harp timestamps vs local timestamps
                 if pdf is not None:
-                    axes[1, 0].plot(local_stream_times, label=stream_name)
-                    axes[1, 1].plot(harp_aligned_ts, label=stream_name)
+                    axes[1, 0].plot(
+                        local_stream_times[::subsample_plots],
+                        label=stream_name,
+                    )
+                    axes[1, 1].plot(
+                        harp_aligned_ts[::subsample_plots], label=stream_name
+                    )
 
                 archive_and_replace_original_timestamps(
-                    os.path.join(
-                        recording.directory, "continuous", stream_folder_name
-                    ),
+                    record_node_dir / "continuous" / stream_folder_name,
                     new_timestamps=harp_aligned_ts,
                     timestamp_filename="timestamps.npy",
                     archive_filename="local_timestamps.npy",
                 )
 
                 # events timestamps
-                stream_events_times_folder = os.path.join(
-                    recording.directory, "events", stream_folder_name, "TTL"
+                stream_events_times_folder = (
+                    record_node_dir / "events" / stream_folder_name / "TTL"
                 )
                 stream_events_times = np.load(
-                    os.path.join(stream_events_times_folder, "timestamps.npy")
+                    stream_events_times_folder / "timestamps.npy"
                 )
                 stream_events_harp_aligned_ts = (
                     align_timestamps_to_anchor_points(
@@ -892,7 +898,7 @@ def align_timestamps_harp(
                 axes[1, 0].set_xlabel("Samples")
                 axes[1, 1].set_title("Harp timestamps (s)")
                 axes[1, 1].set_xlabel("Samples")
-                fig.savefig(os.path.join(directory, "harp_temporal_alignment.png"))
+                fig.savefig(directory / "harp_temporal_alignment.png")
 
             if pdf is not None:
                 pdf.set_y(40)
@@ -905,15 +911,12 @@ if __name__ == "__main__":
         print(" 1. A data directory")
         print(" 2. A JSON parameters file")
     else:
-        with open(
-            sys.argv[2],
-            "r",
-        ) as f:
+        with open(sys.argv[2], "r") as f:
             parameters = json.load(f)
 
-        directory = sys.argv[1]
+        directory = Path(sys.argv[1])
 
-        if not os.path.exists(directory):
+        if not directory.exists():
             raise ValueError(f"Data directory {directory} does not exist.")
 
         align_timestamps(directory, **parameters)
