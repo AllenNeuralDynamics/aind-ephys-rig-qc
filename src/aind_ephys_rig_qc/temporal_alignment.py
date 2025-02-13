@@ -267,7 +267,7 @@ def archive_and_replace_original_timestamps(
     np.save(directory / timestamp_filename, new_timestamps)
 
 
-def align_timestamps(  # nqa
+def align_timestamps(  # noqa: C901
     directory,
     original_timestamp_filename: str = "original_timestamps.npy",
     flip_NIDAQ: bool = False,
@@ -300,6 +300,7 @@ def align_timestamps(  # nqa
         If given, the plot timestamps functions will skip every
         `subsample_plots` continuous timestamps.
     """
+    directory = Path(directory)
     if pdf is not None:
         assert do_plots, "Cannot save figures without plotting"
 
@@ -318,6 +319,7 @@ def align_timestamps(  # nqa
         curr_record_node = record_node_dir.name.split("Record Node ")[1]
 
         for recording in recordnode.recordings:
+            recording_dir = Path(recording.directory)
             current_experiment_index = recording.experiment_index
             current_recording_index = recording.recording_index
 
@@ -445,7 +447,7 @@ def align_timestamps(  # nqa
                 ][0]
                 print("Updating stream continuous timestamps...")
                 archive_and_replace_original_timestamps(
-                    record_node_dir / "continuous" / stream_folder_name,
+                    recording_dir / "continuous" / stream_folder_name,
                     new_timestamps=ts_main,
                     timestamp_filename="timestamps.npy",
                     archive_filename=original_timestamp_filename,
@@ -457,7 +459,7 @@ def align_timestamps(  # nqa
                 # mapping to original events sample number
                 # in case timestamps are not in order
                 main_stream_events_folder = (
-                    record_node_dir / "events" / stream_folder_name / "TTL"
+                    recording_dir / "events" / stream_folder_name / "TTL"
                 )
                 sample_filename_events = (
                     main_stream_events_folder / "sample_numbers.npy"
@@ -684,9 +686,7 @@ def align_timestamps(  # nqa
                         ][0]
                         print("Updating stream continuous timestamps...")
                         archive_and_replace_original_timestamps(
-                            record_node_dir
-                            / "continuous"
-                            / stream_folder_name,
+                            recording_dir / "continuous" / stream_folder_name,
                             new_timestamps=ts_stream,
                             timestamp_filename="timestamps.npy",
                             archive_filename=original_timestamp_filename,
@@ -717,7 +717,7 @@ def align_timestamps(  # nqa
                         # mapping original events sample number
                         # in case timestamps are not in order
                         stream_events_folder = (
-                            record_node_dir
+                            recording_dir
                             / "events"
                             / stream_folder_name
                             / "TTL"
@@ -744,7 +744,7 @@ def align_timestamps(  # nqa
         fig.savefig(directory / "temporal_alignment.png")
 
 
-def align_timestamps_harp(
+def align_timestamps_harp(  # noqa: C901
     directory: str,
     pdf: PdfReport | None = None,
     do_plots: bool = True,
@@ -782,6 +782,7 @@ def align_timestamps_harp(
         curr_record_node = record_node_dir.name.split("Record Node ")[1]
 
         for recording in recordnode.recordings:
+            recording_dir = Path(recording.directory)
             current_experiment_index = recording.experiment_index
             current_recording_index = recording.recording_index
 
@@ -862,7 +863,7 @@ def align_timestamps_harp(
                     )
 
                 archive_and_replace_original_timestamps(
-                    record_node_dir / "continuous" / stream_folder_name,
+                    recording_dir / "continuous" / stream_folder_name,
                     new_timestamps=harp_aligned_ts,
                     timestamp_filename="timestamps.npy",
                     archive_filename="local_timestamps.npy",
@@ -870,7 +871,7 @@ def align_timestamps_harp(
 
                 # events timestamps
                 stream_events_times_folder = (
-                    record_node_dir / "events" / stream_folder_name / "TTL"
+                    recording_dir / "events" / stream_folder_name / "TTL"
                 )
                 stream_events_times = np.load(
                     stream_events_times_folder / "timestamps.npy"
