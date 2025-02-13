@@ -435,6 +435,8 @@ def align_timestamps(  # noqa
                     archive_filename=original_timestamp_filename,
                 )
 
+                del ts_main
+
                 # save timestamps for the events in the main stream
                 # mapping to original events sample number
                 # in case timestamps are not in order
@@ -457,6 +459,9 @@ def align_timestamps(  # noqa
                     timestamp_filename="timestamps.npy",
                     archive_filename=original_timestamp_filename,
                 )
+
+                del ts_main_events
+
                 # archive the original main stream events to recover
                 # after removing first or last event
                 main_stream_events_archive = main_stream_events.copy()
