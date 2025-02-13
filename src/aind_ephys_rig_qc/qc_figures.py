@@ -2,6 +2,9 @@
 Generates figures for checking ephys data quality
 """
 
+import json
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import spikeinterface as si
@@ -20,8 +23,6 @@ from spikeinterface.sortingcomponents.peak_detection import (
 from spikeinterface.sortingcomponents.peak_localization import (
     LocalizeCenterOfMass,
 )
-import json
-from pathlib import Path
 
 
 def plot_raw_data(

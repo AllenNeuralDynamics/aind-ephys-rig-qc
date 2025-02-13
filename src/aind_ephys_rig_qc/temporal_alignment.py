@@ -434,7 +434,7 @@ def align_timestamps(  # noqa
                     timestamp_filename="timestamps.npy",
                     archive_filename=original_timestamp_filename,
                 )
-                
+
                 del ts_main
 
                 # save timestamps for the events in the main stream
