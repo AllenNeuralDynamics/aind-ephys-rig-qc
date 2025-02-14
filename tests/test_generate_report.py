@@ -148,7 +148,7 @@ class TestTimestampsAlignment(unittest.TestCase):
     def test_timestamps_alignment_no_plots(self):
         """Check if output is figure."""
         directory = test_folder / test_dataset
-        align_timestamps(directory, do_plots=False)
+        align_timestamps(directory, make_plots=False)
         pngs = [p for p in directory.glob("**/*.png")]
         assert len(pngs) == 0
 
@@ -168,6 +168,7 @@ class TestTimestampsAlignment(unittest.TestCase):
 
 
 def _clean_up_test_dir(directory):
+    """Remove all generated timestamps files."""
     directory = Path(directory)
     original_timestamps = [
         p for p in directory.glob("**/*original_timestamps.npy")

@@ -274,7 +274,7 @@ def align_timestamps(  # noqa: C901
     local_sync_line: int = 1,
     main_stream_index: int = 0,
     pdf: PdfReport | None = None,
-    do_plots: bool = True,
+    make_plots: bool = True,
     subsample_plots: int | None = None,
 ):
     """
@@ -292,9 +292,9 @@ def align_timestamps(  # noqa: C901
         The index of the main stream to align to
     pdf : PdfReport | None, default: None
         Report for adding QC figures. If None, no report is generated.
-        The `do_plots` parameter must be set to True to save figures in case
+        The `make_plots` parameter must be set to True to save figures in case
         a report is generated.
-    do_plots : bool, default: True
+    make_plots : bool, default: True
         Whether to plot the alignment figures.
     subsample_plots : int | None, default: None
         If given, the plot timestamps functions will skip every
@@ -302,7 +302,7 @@ def align_timestamps(  # noqa: C901
     """
     directory = Path(directory)
     if pdf is not None:
-        assert do_plots, "Cannot save figures without plotting"
+        assert make_plots, "Cannot save figures without plotting"
 
     if subsample_plots is None:
         subsample_plots = 1
@@ -423,7 +423,7 @@ def align_timestamps(  # noqa: C901
                             f"Recording {current_recording_index}"
                         ),
                     )
-                if do_plots:
+                if make_plots:
                     fig = Figure(figsize=(10, 10))
                     axes = fig.subplots(nrows=3, ncols=2)
 
@@ -627,7 +627,7 @@ def align_timestamps(  # noqa: C901
                             "main times"
                         )
 
-                        if do_plots:
+                        if make_plots:
                             # Plot original timestamps
                             axes[0, 0].plot(
                                 stream.timestamps, label=stream_name
@@ -667,7 +667,7 @@ def align_timestamps(  # noqa: C901
                             main_stream_times,
                         )
 
-                        if do_plots:
+                        if make_plots:
                             # Plot aligned timestamps
                             axes[0, 1].plot(ts_stream, label=stream_name)
                             axes[1, 1].plot(
@@ -692,7 +692,7 @@ def align_timestamps(  # noqa: C901
                             archive_filename=original_timestamp_filename,
                         )
 
-                        if do_plots:
+                        if make_plots:
                             axes[0, 0].set_title("Original alignment")
                             axes[0, 0].set_xlabel("Sample number")
                             axes[0, 0].set_ylabel("Time (ms)")
@@ -740,14 +740,14 @@ def align_timestamps(  # noqa: C901
                             archive_filename=original_timestamp_filename,
                         )
 
-    if do_plots:
+    if make_plots:
         fig.savefig(directory / "temporal_alignment.png")
 
 
 def align_timestamps_harp(  # noqa: C901
     directory: str,
     pdf: PdfReport | None = None,
-    do_plots: bool = True,
+    make_plots: bool = True,
     subsample_plots: int | None = None,
 ):
     """
@@ -759,7 +759,7 @@ def align_timestamps_harp(  # noqa: C901
         The path to the Open Ephys data directory
     pdf : PdfReport | None
         Report for adding QC figures (optional)
-    do_plots : bool
+    make_plots : bool
         Whether to plot the alignment figures.
     subsample_plots : int | None
         If given, the plot timestamps functions will skip every
@@ -767,7 +767,7 @@ def align_timestamps_harp(  # noqa: C901
     """
     directory = Path(directory)
     if pdf is not None:
-        assert do_plots, "Cannot save figures without plotting"
+        assert make_plots, "Cannot save figures without plotting"
     if subsample_plots is None:
         subsample_plots = 1
     session = Session(directory, mmap_timestamps=False)
@@ -828,7 +828,7 @@ def align_timestamps_harp(  # noqa: C901
                 )
                 pdf.write(h=12, text=text)
 
-            if do_plots:
+            if make_plots:
                 fig = Figure(figsize=(10, 10))
                 axes = fig.subplots(nrows=2, ncols=2)
 
@@ -889,7 +889,7 @@ def align_timestamps_harp(  # noqa: C901
                     archive_filename="local_timestamps.npy",
                 )
 
-            if do_plots:
+            if make_plots:
                 axes[0, 0].set_title("Harp time vs local time")
                 axes[0, 0].set_xlabel("Local time (s)")
                 axes[0, 0].set_ylabel("Harp time (s)")
