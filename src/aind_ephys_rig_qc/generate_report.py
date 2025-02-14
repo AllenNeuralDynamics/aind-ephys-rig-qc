@@ -1,6 +1,7 @@
 """
 Generates a PDF report from an Open Ephys data directory
 """
+from __future__ import annotations
 
 import io
 import json
@@ -14,6 +15,7 @@ from open_ephys.analysis import Session
 
 from aind_ephys_rig_qc import __version__ as package_version
 from aind_ephys_rig_qc.pdf_utils import PdfReport
+from typing import Optional
 from aind_ephys_rig_qc.qc_figures import (
     plot_drift,
     plot_power_spectrum,
@@ -26,15 +28,16 @@ from aind_ephys_rig_qc.temporal_alignment import (
 
 
 def generate_qc_report(
-    directory,
-    report_name="QC.pdf",
-    timestamp_alignment_method="local",
-    original_timestamp_filename="original_timestamps.npy",
-    num_chunks=3,
-    psd_chunk_size=150000,
-    plot_drift_map=True,
-    flip_NIDAQ=False,
-):
+    directory: str,
+    report_name: str = "QC.pdf",
+    timestamp_alignment_method: str = "local",
+    original_timestamp_filename: str = "original_timestamps.npy",
+    num_chunks: int = 3,
+    psd_chunk_size: int = 150000,
+    plot_drift_map: bool = True,
+    flip_NIDAQ: bool = False,
+    subsample_plots: Optional[int] = None,
+) -> None:
     """
     Generates a PDF report from an Open Ephys data directory
 
@@ -58,7 +61,11 @@ def generate_qc_report(
         and PSD
     plot_drift_map : bool
         Whether to plot the drift map
-
+    flip_NIDAQ : bool
+        Whether to flip the NIDAQ signal
+    subsample_plots : int | None, default: None
+        If given, the plot timestamps functions will skip every
+        `subsample_plots` continuous timestamps.
     """
     # Define log file path
     outfile = os.path.join(directory, "ephys-rig-QC_output.txt")
@@ -94,14 +101,14 @@ def generate_qc_report(
             original_timestamp_filename=original_timestamp_filename,
             flip_NIDAQ=flip_NIDAQ,
             pdf=pdf,
+            subsample_plots=subsample_plots,
         )
 
         if timestamp_alignment_method == "harp":
             # optionally align to Harp timestamps
             print("Aligning timestamps to Harp clock...")
             align_timestamps_harp(
-                directory,
-                pdf=pdf,
+                directory, pdf=pdf, subsample_plots=subsample_plots
             )
 
     print("Creating QC plots...")
@@ -121,7 +128,7 @@ def generate_qc_report(
         f.write(output_stream.getvalue())
 
 
-def get_stream_info(directory):
+def get_stream_info(directory: str) -> pd.DataFrame:
     """
     Get information about the streams in an Open Ephys data directory
 
@@ -173,7 +180,7 @@ def get_stream_info(directory):
     return pd.DataFrame(data=stream_info)
 
 
-def get_event_info(events, stream_name):
+def get_event_info(events: pd.DataFrame, stream_name: str) -> pd.DataFrame:
     """
     Get information about the events in a given stream
 
@@ -219,17 +226,31 @@ def get_event_info(events, stream_name):
 
 
 def create_qc_plots(
-    pdf,
-    directory,
-    num_chunks=3,
-    raw_chunk_size=1000,
-    psd_chunk_size=150000,
-    plot_drift_map=True,
-):
+    pdf: PdfReport,
+    directory: str,
+    num_chunks: int = 3,
+    raw_chunk_size: int = 1000,
+    psd_chunk_size: int = 150000,
+    plot_drift_map: bool = True,
+) -> None:
     """
     Create QC plots for an Open Ephys data directory
-    """
 
+    Parameters
+    ----------
+    pdf : PdfReport
+        The PDF report object to add the plots to
+    directory : str
+        The path to the Open Ephys data directory
+    num_chunks : int, default: 3
+        The number of chunks to split the data into for plotting raw data
+    raw_chunk_size : int, default: 1000
+        The chunk size for raw data plots
+    psd_chunk_size : int, default: 150000
+        The chunk size for power spectrum density plots
+    plot_drift_map : bool, default: True
+        Whether to plot the drift map
+    """
     session = Session(directory)
 
     for recordnode in session.recordnodes:
@@ -329,7 +350,6 @@ def create_qc_plots(
 
 
 if __name__ == "__main__":
-
     if len(sys.argv) != 3:
         print("Two input arguments are required:")
         print(" 1. A data directory")
