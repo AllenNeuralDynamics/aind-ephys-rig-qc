@@ -1,6 +1,7 @@
 """
 Generates a PDF report from an Open Ephys data directory
 """
+from __future__ import annotations
 
 import io
 import json
