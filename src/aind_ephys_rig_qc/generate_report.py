@@ -36,7 +36,7 @@ def generate_qc_report(
     psd_chunk_size: int = 150000,
     plot_drift_map: bool = True,
     flip_NIDAQ: bool = False,
-    subsample_plots: Optional[int] = None,
+    subsample_plots: Optional[int] = 1000,
 ) -> None:
     """
     Generates a PDF report from an Open Ephys data directory

@@ -276,7 +276,7 @@ def align_timestamps(  # noqa: C901
     main_stream_index: int = 0,
     pdf: PdfReport | None = None,
     make_plots: bool = True,
-    subsample_plots: int | None = None,
+    subsample_plots: int = 1000
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -297,16 +297,13 @@ def align_timestamps(  # noqa: C901
         a report is generated.
     make_plots : bool, default: True
         Whether to plot the alignment figures.
-    subsample_plots : int | None, default: None
+    subsample_plots : int, default: 1000
         If given, the plot timestamps functions will skip every
-        `subsample_plots` continuous timestamps.
+        `subsample_plots` continuous timestamps to conserve memory.
     """
     directory = Path(directory)
     if pdf is not None:
         assert make_plots, "Cannot save figures without plotting"
-
-    if subsample_plots is None:
-        subsample_plots = 1
 
     session = Session(directory, mmap_timestamps=False)
     stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
@@ -427,7 +424,6 @@ def align_timestamps(  # noqa: C901
                 if make_plots:
                     fig = Figure(figsize=(10, 10))
                     axes = fig.subplots(nrows=3, ncols=2)
-
                     axes[0, 0].plot(
                         main_stream.timestamps[::subsample_plots],
                         label=main_stream_name,
@@ -631,7 +627,8 @@ def align_timestamps(  # noqa: C901
                         if make_plots:
                             # Plot original timestamps
                             axes[0, 0].plot(
-                                stream.timestamps, label=stream_name
+                                stream.timestamps[::subsample_plots],
+                                label=stream_name
                             )
                             axes[1, 0].plot(
                                 (
@@ -670,7 +667,8 @@ def align_timestamps(  # noqa: C901
 
                         if make_plots:
                             # Plot aligned timestamps
-                            axes[0, 1].plot(ts_stream, label=stream_name)
+                            axes[0, 1].plot(ts_stream[::subsample_plots],
+                                            label=stream_name)
                             axes[1, 1].plot(
                                 (np.diff(ts) - np.diff(main_stream_times))
                                 * 1000,
@@ -749,7 +747,7 @@ def align_timestamps_harp(  # noqa: C901
     directory: str,
     pdf: PdfReport | None = None,
     make_plots: bool = True,
-    subsample_plots: int | None = None,
+    subsample_plots: int = 10000,
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -762,15 +760,14 @@ def align_timestamps_harp(  # noqa: C901
         Report for adding QC figures (optional)
     make_plots : bool
         Whether to plot the alignment figures.
-    subsample_plots : int | None
+    subsample_plots : int, default = 1000
         If given, the plot timestamps functions will skip every
-        `subsample_plots` continuous timestamps.
+        `subsample_plots` continuous timestamps to save memory.
     """
     directory = Path(directory)
     if pdf is not None:
         assert make_plots, "Cannot save figures without plotting"
-    if subsample_plots is None:
-        subsample_plots = 1
+
     session = Session(directory, mmap_timestamps=False)
     stream_folder_names, _ = se.get_neo_streams("openephysbinary", directory)
     stream_folder_names = [
