@@ -160,7 +160,7 @@ class TestTimestampsAlignment(unittest.TestCase):
             p.stat().st_size for p in directory.glob("**/*.png")
         ]
         _clean_up_test_dir(directory)
-        align_timestamps(directory, subsample_plots=10)
+        align_timestamps(directory, subsample_plots=5000)
         pngs_sub_sizes = [p.stat().st_size for p in directory.glob("**/*.png")]
         assert all(
             [sub < full for sub, full in zip(pngs_sub_sizes, pngs_full_sizes)]
