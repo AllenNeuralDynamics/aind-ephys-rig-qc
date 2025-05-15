@@ -96,7 +96,7 @@ def clean_up_sample_chunks(sample_number):
             if np.all(no_overlaps):
                 print(
                     "Residual chunks can be removed "
-                    " without affecting major chunk"
+                    "without affecting major chunk"
                 )
             else:
                 main_range = np.arange(major_min, major_max)
@@ -116,6 +116,10 @@ def clean_up_sample_chunks(sample_number):
                     "Residual chunks cannot be removed without "
                     f" affecting major chunk, overlap {overlap_perc}%"
                 )
+
+        if residual_ranges[0][0] != sample_number[0]:
+            print("First chunk not at beginning of recording, skipping...")
+            realign = False
 
         return realign, residual_ranges
 
@@ -369,13 +373,7 @@ def align_timestamps(  # noqa: C901
                 sample_intervals
             )
             realign, residual_ranges = clean_up_sample_chunks(sample_numbers)
-            if not realign:
-                print(
-                    "Recording cannot be realigned. "
-                    "Please check quality of recording."
-                )
-                continue
-            else:
+            if realign:
                 # remove events in residual chunks
                 for res_ind in range(len(residual_ranges)):
                     condition = np.logical_and(
@@ -392,100 +390,100 @@ def align_timestamps(  # noqa: C901
                         main_stream_events[condition].index
                     )
 
-                main_stream_times = (
-                    main_stream_events.sample_number.values
-                    / main_stream_sample_rate
-                )
-                main_stream_times = (
-                    main_stream_times - main_stream_times[0]
-                )  # start at 0
-                main_stream_event_sample = (
-                    main_stream_events.sample_number.values
-                )
+            main_stream_times = (
+                main_stream_events.sample_number.values
+                / main_stream_sample_rate
+            )
+            main_stream_times = (
+                main_stream_times - main_stream_times[0]
+            )  # start at 0
+            main_stream_event_sample = (
+                main_stream_events.sample_number.values
+            )
 
-                # align recording timestamps to main stream
-                ts_main = align_timestamps_to_anchor_points(
-                    sample_numbers,
-                    main_stream_event_sample,
-                    main_stream_times,
-                )
+            # align recording timestamps to main stream
+            ts_main = align_timestamps_to_anchor_points(
+                sample_numbers,
+                main_stream_event_sample,
+                main_stream_times,
+            )
 
-                print(
-                    f"Total events for {main_stream_name}: "
-                    f"{len(main_stream_events)}"
+            print(
+                f"Total events for {main_stream_name}: "
+                f"{len(main_stream_events)}"
+            )
+            if pdf is not None:
+                pdf.add_page()
+                pdf.set_font("Helvetica", "B", size=12)
+                pdf.set_y(30)
+                pdf.write(
+                    h=12,
+                    text=(
+                        "Temporal alignment "
+                        f"of Record Node {curr_record_node} - "
+                        f"Experiment {current_experiment_index} - "
+                        f"Recording {current_recording_index}"
+                    ),
                 )
-                if pdf is not None:
-                    pdf.add_page()
-                    pdf.set_font("Helvetica", "B", size=12)
-                    pdf.set_y(30)
-                    pdf.write(
-                        h=12,
-                        text=(
-                            "Temporal alignment "
-                            f"of Record Node {curr_record_node} - "
-                            f"Experiment {current_experiment_index} - "
-                            f"Recording {current_recording_index}"
-                        ),
-                    )
-                if make_plots:
-                    fig = Figure(figsize=(10, 10))
-                    axes = fig.subplots(nrows=3, ncols=2)
-                    axes[0, 0].plot(
-                        main_stream.timestamps[::subsample_plots],
-                        label=main_stream_name,
-                    )
-                    axes[0, 1].plot(
-                        ts_main[::subsample_plots], label=main_stream_name
-                    )
-                    axes[2, 0].bar(
-                        sample_intervals_cat, sample_intervals_counts
-                    )
-                    axes[2, 1].axis("off")
+            if make_plots:
+                fig = Figure(figsize=(10, 10))
+                axes = fig.subplots(nrows=3, ncols=2)
+                axes[0, 0].plot(
+                    main_stream.timestamps[::subsample_plots],
+                    label=main_stream_name,
+                )
+                axes[0, 1].plot(
+                    ts_main[::subsample_plots], label=main_stream_name
+                )
+                axes[2, 0].bar(
+                    sample_intervals_cat, sample_intervals_counts
+                )
+                axes[2, 1].axis("off")
 
-                # save the timestamps for continuous in the main stream
-                stream_folder_name = [
-                    stream_folder_name
-                    for stream_folder_name in stream_folder_names
-                    if main_stream_name in stream_folder_name
-                ][0]
-                print("Updating stream continuous timestamps...")
-                archive_and_replace_original_timestamps(
-                    recording_dir / "continuous" / stream_folder_name,
-                    new_timestamps=ts_main,
-                    timestamp_filename="timestamps.npy",
-                    archive_filename=original_timestamp_filename,
-                )
+            # save the timestamps for continuous in the main stream
+            stream_folder_name = [
+                stream_folder_name
+                for stream_folder_name in stream_folder_names
+                if main_stream_name in stream_folder_name
+            ][0]
+            print("Updating stream continuous timestamps...")
+            archive_and_replace_original_timestamps(
+                recording_dir / "continuous" / stream_folder_name,
+                new_timestamps=ts_main,
+                timestamp_filename="timestamps.npy",
+                archive_filename=original_timestamp_filename,
+            )
 
-                del ts_main
+            del ts_main
 
-                # save timestamps for the events in the main stream
-                # mapping to original events sample number
-                # in case timestamps are not in order
-                main_stream_events_folder = (
-                    recording_dir / "events" / stream_folder_name / "TTL"
-                )
-                sample_filename_events = (
-                    main_stream_events_folder / "sample_numbers.npy"
-                )
-                sample_number_raw = np.load(sample_filename_events)
-                ts_main_events = align_timestamps_to_anchor_points(
-                    sample_number_raw,
-                    main_stream_event_sample,
-                    main_stream_times,
-                )
-                print("Updating stream event timestamps...")
-                archive_and_replace_original_timestamps(
-                    main_stream_events_folder,
-                    new_timestamps=ts_main_events,
-                    timestamp_filename="timestamps.npy",
-                    archive_filename=original_timestamp_filename,
-                )
+            # save timestamps for the events in the main stream
+            # mapping to original events sample number
+            # in case timestamps are not in order
+            main_stream_events_folder = (
+                recording_dir / "events" / stream_folder_name / "TTL"
+            )
+            sample_filename_events = (
+                main_stream_events_folder / "sample_numbers.npy"
+            )
+            sample_number_raw = np.load(sample_filename_events)
+            ts_main_events = align_timestamps_to_anchor_points(
+                sample_number_raw,
+                main_stream_event_sample,
+                main_stream_times,
+            )
+            print("Updating stream event timestamps...")
+            archive_and_replace_original_timestamps(
+                main_stream_events_folder,
+                new_timestamps=ts_main_events,
+                timestamp_filename="timestamps.npy",
+                archive_filename=original_timestamp_filename,
+            )
 
-                del ts_main_events
+            del ts_main_events
 
-                # archive the original main stream events to recover
-                # after removing first or last event
-                main_stream_events_archive = main_stream_events.copy()
+            # archive the original main stream events to recover
+            # after removing first or last event
+            main_stream_events_archive = main_stream_events.copy()
 
             for stream_idx, stream in enumerate(recording.continuous):
                 if stream_idx != main_stream_index:
@@ -532,13 +530,7 @@ def align_timestamps(  # noqa: C901
                         sample_numbers
                     )
 
-                    if not realign:
-                        print(
-                            "Recording cannot be realigned. "
-                            "Please check quality of recording."
-                        )
-                        continue
-                    else:
+                    if realign:
                         # remove events in residual chunks
                         for res_ind in range(len(residual_ranges)):
                             condition = np.logical_and(
@@ -563,188 +555,188 @@ def align_timestamps(  # noqa: C901
                             "main times"
                         )
 
-                        if len(main_stream_events) != len(events_for_stream):
-                            print(
-                                "Number of events in main and current stream"
-                                " are not equal"
-                            )
-                            first_main_event_ts = (
-                                main_stream_events.sample_number.values[0]
-                            ) / main_stream_sample_rate
-                            first_curr_event_ts = (
-                                events_for_stream.sample_number.values[0]
-                            ) / sample_rate
-                            offset = np.abs(
-                                first_main_event_ts - first_curr_event_ts
-                            )
-                            print(
-                                "First event in main and current stream"
-                                " are not aligned. Off by {offset:.2f} s"
-                            )
-
-                            if offset > 0.1:
-                                # bigger than 0.1s so that
-                                # it should not be the same event
-
-                                # remove first event from the stream
-                                # with the most events
-                                if len(main_stream_events) > len(
-                                    events_for_stream
-                                ):
-                                    print(
-                                        "Removing first event in main stream"
-                                    )
-                                    main_stream_events = main_stream_events[1:]
-                                    main_stream_times = main_stream_times[1:]
-                                else:
-                                    print(
-                                        "Removing first event in "
-                                        "current stream"
-                                    )
-                                    events_for_stream = events_for_stream[1:]
-                            else:
-                                # remove last event from the stream
-                                # with the most events
-                                if len(main_stream_events) > len(
-                                    events_for_stream
-                                ):
-                                    print("Removing last event in main stream")
-                                    main_stream_events = main_stream_events[
-                                        :-1
-                                    ]
-                                    main_stream_times = main_stream_times[:-1]
-                                else:
-                                    print(
-                                        "Removing last event in current stream"
-                                    )
-                                    events_for_stream = events_for_stream[:-1]
-                        else:
-                            print(
-                                "Number of events in main and current stream"
-                                " are equal"
-                            )
-
+                    if len(main_stream_events) != len(events_for_stream):
                         print(
-                            f"After removal: {len(events_for_stream)} "
-                            f"local times, {len(main_stream_times)} "
-                            "main times"
+                            "Number of events in main and current stream"
+                            " are not equal"
+                        )
+                        first_main_event_ts = (
+                            main_stream_events.sample_number.values[0]
+                        ) / main_stream_sample_rate
+                        first_curr_event_ts = (
+                            events_for_stream.sample_number.values[0]
+                        ) / sample_rate
+                        offset = np.abs(
+                            first_main_event_ts - first_curr_event_ts
+                        )
+                        print(
+                            "First event in main and current stream"
+                            f" are not aligned. Off by {offset:.2f} s"
                         )
 
-                        if make_plots:
-                            # Plot original timestamps
-                            axes[0, 0].plot(
-                                stream.timestamps[::subsample_plots],
-                                label=stream_name,
-                            )
-                            axes[1, 0].plot(
-                                (
-                                    np.diff(events_for_stream.timestamp)
-                                    - np.diff(main_stream_events.timestamp)
+                        if offset > 0.1:
+                            # bigger than 0.1s so that
+                            # it should not be the same event
+
+                            # remove first event from the stream
+                            # with the most events
+                            if len(main_stream_events) > len(
+                                events_for_stream
+                            ):
+                                print(
+                                    "Removing first event in main stream"
                                 )
-                                * 1000,
-                                label=(stream_name),
-                                linewidth=1,
+                                main_stream_events = main_stream_events[1:]
+                                main_stream_times = main_stream_times[1:]
+                            else:
+                                print(
+                                    "Removing first event in "
+                                    "current stream"
+                                )
+                                events_for_stream = events_for_stream[1:]
+                        else:
+                            # remove last event from the stream
+                            # with the most events
+                            if len(main_stream_events) > len(
+                                events_for_stream
+                            ):
+                                print("Removing last event in main stream")
+                                main_stream_events = main_stream_events[
+                                    :-1
+                                ]
+                                main_stream_times = main_stream_times[:-1]
+                            else:
+                                print(
+                                    "Removing last event in current stream"
+                                )
+                                events_for_stream = events_for_stream[:-1]
+                    else:
+                        print(
+                            "Number of events in main and current stream"
+                            " are equal"
+                        )
+
+                    print(
+                        f"After removal: {len(events_for_stream)} "
+                        f"local times, {len(main_stream_times)} "
+                        "main times"
+                    )
+
+                    if make_plots:
+                        # Plot original timestamps
+                        axes[0, 0].plot(
+                            stream.timestamps[::subsample_plots],
+                            label=stream_name,
+                        )
+                        axes[1, 0].plot(
+                            (
+                                np.diff(events_for_stream.timestamp)
+                                - np.diff(main_stream_events.timestamp)
                             )
-                            axes[1, 0].set_ylim([-1.5, 1.5])
-                            axes[2, 0].bar(
-                                sample_intervals_cat, sample_intervals_counts
-                            )
-
-                        assert len(main_stream_events) == len(
-                            events_for_stream
+                            * 1000,
+                            label=(stream_name),
+                            linewidth=1,
+                        )
+                        axes[1, 0].set_ylim([-1.5, 1.5])
+                        axes[2, 0].bar(
+                            sample_intervals_cat, sample_intervals_counts
                         )
 
-                        local_stream_times = (
-                            events_for_stream.sample_number.values
-                            / sample_rate
+                    assert len(main_stream_events) == len(
+                        events_for_stream
+                    )
+
+                    local_stream_times = (
+                        events_for_stream.sample_number.values
+                        / sample_rate
+                    )
+
+                    ts = align_timestamps_to_anchor_points(
+                        local_stream_times,
+                        local_stream_times,
+                        main_stream_times,
+                    )
+
+                    ts_stream = align_timestamps_to_anchor_points(
+                        sample_numbers,
+                        events_for_stream.sample_number.values,
+                        main_stream_times,
+                    )
+
+                    if make_plots:
+                        # Plot aligned timestamps
+                        axes[0, 1].plot(
+                            ts_stream[::subsample_plots], label=stream_name
                         )
-
-                        ts = align_timestamps_to_anchor_points(
-                            local_stream_times,
-                            local_stream_times,
-                            main_stream_times,
+                        axes[1, 1].plot(
+                            (np.diff(ts) - np.diff(main_stream_times))
+                            * 1000,
+                            label=stream_name,
+                            linewidth=1,
                         )
+                        axes[1, 1].set_ylim([-1.5, 1.5])
 
-                        ts_stream = align_timestamps_to_anchor_points(
-                            sample_numbers,
-                            events_for_stream.sample_number.values,
-                            main_stream_times,
-                        )
+                    # write the new timestamps .npy files
+                    stream_folder_name = [
+                        name
+                        for name in stream_folder_names
+                        if stream_name in name
+                    ][0]
+                    print("Updating stream continuous timestamps...")
+                    archive_and_replace_original_timestamps(
+                        recording_dir / "continuous" / stream_folder_name,
+                        new_timestamps=ts_stream,
+                        timestamp_filename="timestamps.npy",
+                        archive_filename=original_timestamp_filename,
+                    )
 
-                        if make_plots:
-                            # Plot aligned timestamps
-                            axes[0, 1].plot(
-                                ts_stream[::subsample_plots], label=stream_name
-                            )
-                            axes[1, 1].plot(
-                                (np.diff(ts) - np.diff(main_stream_times))
-                                * 1000,
-                                label=stream_name,
-                                linewidth=1,
-                            )
-                            axes[1, 1].set_ylim([-1.5, 1.5])
+                    if make_plots:
+                        axes[0, 0].set_title("Original alignment")
+                        axes[0, 0].set_xlabel("Sample number")
+                        axes[0, 0].set_ylabel("Time (ms)")
+                        axes[0, 0].legend(loc="upper left")
+                        axes[1, 0].set_xlabel("Sync event number")
+                        axes[1, 0].set_ylabel("Time interval (ms)")
+                        axes[2, 0].set_xlabel("Sample interval")
+                        axes[2, 0].set_ylabel("Percentage")
 
-                        # write the new timestamps .npy files
-                        stream_folder_name = [
-                            name
-                            for name in stream_folder_names
-                            if stream_name in name
-                        ][0]
-                        print("Updating stream continuous timestamps...")
-                        archive_and_replace_original_timestamps(
-                            recording_dir / "continuous" / stream_folder_name,
-                            new_timestamps=ts_stream,
-                            timestamp_filename="timestamps.npy",
-                            archive_filename=original_timestamp_filename,
-                        )
+                        axes[0, 1].set_title("After local alignment")
+                        axes[0, 1].set_xlabel("Sample number")
+                        axes[0, 1].set_ylabel("Time (ms)")
+                        axes[0, 1].legend(loc="upper left")
+                        axes[1, 1].set_xlabel("Sync event number")
+                        axes[1, 1].set_ylabel("Time diff (ms)")
 
-                        if make_plots:
-                            axes[0, 0].set_title("Original alignment")
-                            axes[0, 0].set_xlabel("Sample number")
-                            axes[0, 0].set_ylabel("Time (ms)")
-                            axes[0, 0].legend(loc="upper left")
-                            axes[1, 0].set_xlabel("Sync event number")
-                            axes[1, 0].set_ylabel("Time interval (ms)")
-                            axes[2, 0].set_xlabel("Sample interval")
-                            axes[2, 0].set_ylabel("Percentage")
+                    if pdf is not None:
+                        pdf.set_y(40)
+                        pdf.embed_figure(fig)
 
-                            axes[0, 1].set_title("After local alignment")
-                            axes[0, 1].set_xlabel("Sample number")
-                            axes[0, 1].set_ylabel("Time (ms)")
-                            axes[0, 1].legend(loc="upper left")
-                            axes[1, 1].set_xlabel("Sync event number")
-                            axes[1, 1].set_ylabel("Time diff (ms)")
+                    # save timestamps for the events in the stream
+                    # mapping original events sample number
+                    # in case timestamps are not in order
+                    stream_events_folder = (
+                        recording_dir
+                        / "events"
+                        / stream_folder_name
+                        / "TTL"
+                    )
+                    sample_filename_events = (
+                        stream_events_folder / "sample_numbers.npy"
+                    )
+                    sample_number_raw = np.load(sample_filename_events)
 
-                        if pdf is not None:
-                            pdf.set_y(40)
-                            pdf.embed_figure(fig)
-
-                        # save timestamps for the events in the stream
-                        # mapping original events sample number
-                        # in case timestamps are not in order
-                        stream_events_folder = (
-                            recording_dir
-                            / "events"
-                            / stream_folder_name
-                            / "TTL"
-                        )
-                        sample_filename_events = (
-                            stream_events_folder / "sample_numbers.npy"
-                        )
-                        sample_number_raw = np.load(sample_filename_events)
-
-                        ts_events = align_timestamps_to_anchor_points(
-                            sample_number_raw,
-                            events_for_stream.sample_number.values,
-                            main_stream_times,
-                        )
-                        print("Updating stream event timestamps...")
-                        archive_and_replace_original_timestamps(
-                            stream_events_folder,
-                            new_timestamps=ts_events,
-                            timestamp_filename="timestamps.npy",
-                            archive_filename=original_timestamp_filename,
-                        )
+                    ts_events = align_timestamps_to_anchor_points(
+                        sample_number_raw,
+                        events_for_stream.sample_number.values,
+                        main_stream_times,
+                    )
+                    print("Updating stream event timestamps...")
+                    archive_and_replace_original_timestamps(
+                        stream_events_folder,
+                        new_timestamps=ts_events,
+                        timestamp_filename="timestamps.npy",
+                        archive_filename=original_timestamp_filename,
+                    )
 
     if make_plots:
         fig.savefig(directory / "temporal_alignment.png")
