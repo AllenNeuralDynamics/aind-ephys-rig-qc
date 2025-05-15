@@ -1,6 +1,7 @@
 """
 Helper class for generating PDF reports (using the fpdf2 library)
 """
+
 from __future__ import annotations
 
 import os

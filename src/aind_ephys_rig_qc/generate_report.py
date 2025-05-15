@@ -1,13 +1,14 @@
 """
 Generates a PDF report from an Open Ephys data directory
 """
+
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
 from datetime import datetime
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,6 @@ from open_ephys.analysis import Session
 
 from aind_ephys_rig_qc import __version__ as package_version
 from aind_ephys_rig_qc.pdf_utils import PdfReport
-from typing import Optional
 from aind_ephys_rig_qc.qc_figures import (
     plot_drift,
     plot_power_spectrum,
@@ -73,8 +73,8 @@ def generate_qc_report(
         f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
         f.write("Start processing..." + "\n")
     # Redirect stdout to capture printed output
-    output_stream = io.StringIO()
-    sys.stdout = output_stream
+    # output_stream = io.StringIO()
+    # sys.stdout = output_stream
 
     pdf = PdfReport("aind-ephys-rig-qc v" + package_version)
     pdf.add_page()
@@ -123,9 +123,11 @@ def generate_qc_report(
     print("Saving QC report...")
     pdf.output(os.path.join(directory, report_name))
     print("Finished.")
-    with open(outfile, "a") as f:
-        f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-        f.write(output_stream.getvalue())
+
+
+# with open(outfile, "a") as f:
+#     f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+#     f.write(output_stream.getvalue())
 
 
 def get_stream_info(directory: str) -> pd.DataFrame:
@@ -362,8 +364,8 @@ if __name__ == "__main__":
             parameters = json.load(f)
         directory = sys.argv[1]
 
-        output_stream = io.StringIO()
-        sys.stdout = output_stream
+        # output_stream = io.StringIO()
+        # sys.stdout = output_stream
         print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         print("Running generate_report.py with parameters:")
         for param in parameters:
@@ -374,8 +376,8 @@ if __name__ == "__main__":
 
         outfile = os.path.join(directory, "ephys-rig-QC_output.txt")
 
-        with open(outfile, "a") as output_file:
-            print("Output written to: ", outfile)
-            output_file.write(output_stream.getvalue())
+        # with open(outfile, "a") as output_file:
+        #    print("Output written to: ", outfile)
+        #    output_file.write(output_stream.getvalue())
 
         generate_qc_report(directory, **parameters)

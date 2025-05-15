@@ -1,6 +1,7 @@
 """
 Aligns timestamps across multiple data streams
 """
+
 from __future__ import annotations
 
 import json
@@ -10,7 +11,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import spikeinterface.extractors as se
-from harp.clock import align_timestamps_to_anchor_points, decode_harp_clock
+from harp.clock import (
+    align_timestamps_to_anchor_points,
+    convert_barcode,
+    decode_harp_clock,
+    get_barcode_edges,
+)
 from matplotlib.figure import Figure
 from open_ephys.analysis import Session
 from scipy.stats import chisquare
@@ -276,7 +282,7 @@ def align_timestamps(  # noqa: C901
     main_stream_index: int = 0,
     pdf: PdfReport | None = None,
     make_plots: bool = True,
-    subsample_plots: int = 1000
+    subsample_plots: int = 1000,
 ):
     """
     Aligns timestamps across multiple Open Ephys data streams
@@ -628,7 +634,7 @@ def align_timestamps(  # noqa: C901
                             # Plot original timestamps
                             axes[0, 0].plot(
                                 stream.timestamps[::subsample_plots],
-                                label=stream_name
+                                label=stream_name,
                             )
                             axes[1, 0].plot(
                                 (
@@ -667,8 +673,9 @@ def align_timestamps(  # noqa: C901
 
                         if make_plots:
                             # Plot aligned timestamps
-                            axes[0, 1].plot(ts_stream[::subsample_plots],
-                                            label=stream_name)
+                            axes[0, 1].plot(
+                                ts_stream[::subsample_plots], label=stream_name
+                            )
                             axes[1, 1].plot(
                                 (np.diff(ts) - np.diff(main_stream_times))
                                 * 1000,
@@ -810,10 +817,35 @@ def align_timestamps_harp(  # noqa: C901
 
             harp_states = harp_events.state.values
             harp_timestamps_local = harp_events.timestamp.values
-            start_times, harp_times = decode_harp_clock(
-                harp_timestamps_local, harp_states
+
+            barcode_edges = get_barcode_edges(harp_timestamps_local, 0.5)
+
+            start_times = np.array(
+                [harp_timestamps_local[edges[0]] for edges in barcode_edges]
             )
-            print("Total Harp events: ", len(harp_times))
+
+            valid_states = []
+            valid_timestamps = []
+
+            for idx, edges in enumerate(barcode_edges):
+                try:
+                    convert_barcode(
+                        harp_timestamps_local[edges[0]: edges[1]],
+                        harp_states[edges[0]: edges[1]],
+                        baud_rate=1000,
+                    )
+                    valid_states.append(harp_states[edges[0]: edges[1]])
+                    valid_timestamps.append(
+                        harp_timestamps_local[edges[0]: edges[1]]
+                    )
+                except IndexError:
+                    pass
+
+            print("Total Harp events: ", len(valid_states))
+
+            start_times, harp_times = decode_harp_clock(
+                np.concatenate(valid_timestamps), np.concatenate(valid_states)
+            )
 
             if pdf is not None:
                 pdf.add_page()

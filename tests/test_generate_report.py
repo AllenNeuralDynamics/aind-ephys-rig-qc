@@ -14,7 +14,6 @@ from aind_ephys_rig_qc.temporal_alignment import (
     align_timestamps_harp,
 )
 
-
 test_folder = Path(__file__).parent / "resources" / "ephys_test_data"
 test_dataset = "691894_2023-10-04_18-03-13_0.5s"
 
