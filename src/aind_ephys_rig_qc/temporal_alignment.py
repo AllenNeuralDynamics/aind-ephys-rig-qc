@@ -372,7 +372,7 @@ def align_timestamps(  # noqa: C901
             sample_intervals_counts = sample_intervals_counts / len(
                 sample_intervals
             )
-            realign, residual_ranges = clean_up_sample_chunks(sample_numbers)
+            realign = False  # realign, residual_ranges = clean_up_sample_chunks(sample_numbers)
             if realign:
                 # remove events in residual chunks
                 for res_ind in range(len(residual_ranges)):
@@ -526,9 +526,7 @@ def align_timestamps(  # noqa: C901
                     sample_intervals_counts = sample_intervals_counts / len(
                         sample_intervals
                     )
-                    realign, residual_ranges = clean_up_sample_chunks(
-                        sample_numbers
-                    )
+                    realign = False  # realign, residual_ranges = clean_up_sample_chunks(sample_numbers)
 
                     if realign:
                         # remove events in residual chunks
